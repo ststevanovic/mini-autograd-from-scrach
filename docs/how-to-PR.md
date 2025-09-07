@@ -12,14 +12,14 @@
     - `_prev`: parent nodes (to build the graph)
     <br/>
 
-    ### Step 2: Add four ops: Add, Mul, Matmul and ReLU
+    ### Step 2: Add five ops: Add, Mul, Matmul, Sum and ReLU
     Each op must:
     - Return a new Tensor with requires_grad=True if any parent requires it.
     - Define _backward to propagate gradients to parents.
     - Save _prev to let .backward() traverse the graph.
     <br/>
 
-    ### Step 3: Backward Method
+    ### Step 3: Add one op: Backward
     Implement `.backward()`:
     - Do a reverse topological traversal of the graph.
     - Seed final grad with 1 if scalar.
@@ -46,10 +46,13 @@
             # TODO: implement
             raise NotImplementedError
 
-        def relu(self, other):
+        def sum(self, other):
             # TODO: implement
             raise NotImplementedError
 
+        def relu(self, other):
+            # TODO: implement
+            raise NotImplementedError
 
         def backward(self, grad=None):
             # TODO: implement backward

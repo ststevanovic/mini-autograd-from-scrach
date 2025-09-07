@@ -24,6 +24,28 @@ jobs:
           merge-method: squash
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Hall of 27 check
+      - name: Check Hall of 27
+        if: success()
+        id: hall27
+        run: |
+          count=$(ls dist/*.whl 2>/dev/null | wc -l || true)
+          echo "current=$count" >> $GITHUB_OUTPUT
+          if [ "$count" -ge 27 ]; then
+            echo "Hall of 27 is full. No more wheels will be stored."
+            exit 0
+          fi
+
+      # Commit dist wheel if still space
+      - name: Commit dist wheel
+        if: success() && steps.hall27.outputs.current < 27
+        run: |
+          git config user.email "autograd-bot@users.noreply.github.com"
+          git config user.name "autograd-bot"
+          git add dist
+          git commit -m "AutoGrad-uated: Wheel from ${{ github.actor }} (Hall of 27)"
+          git push
+
       # Skullify notebooks after merge
       - name: Skullify notebook
         if: success()
@@ -57,5 +79,5 @@ jobs:
           git config --global user.name "CI Bot"
           git checkout main
           git add notebooks/
-          git commit -m "🎓💀 AutoGrad-uated: Skullified $STUDENT_ID's notebook"
+          git commit -m "🎓AutoGrad-uated: Skullified $STUDENT_ID's notebook"
           git push
