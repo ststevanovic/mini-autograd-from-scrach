@@ -16,7 +16,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -88,4 +87,4 @@ jobs:
           git checkout main
           git add notebooks/
           git commit -m "🎓AutoGrad-uated: Skullified $STUDENT_ID's notebook"
-          git push
+          git push origin HEAD:main
