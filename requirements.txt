@@ -1,0 +1,7 @@
+numpy
+torch
+pytest
+nbformat
+nbclient
+ipykernel
+packaging

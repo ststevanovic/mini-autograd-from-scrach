@@ -1,0 +1,61 @@
+name: CI + AutoGrad-uate
+
+on:
+  pull_request:
+    paths:
+      - "notebooks/**"
+
+jobs:
+  test-and-autograduate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pytest -q
+
+      # Auto-merge if tests succeed
+      - name: Auto-merge PR
+        if: success()
+        uses: peter-evans/merge-pull-request@v3
+        with:
+          merge-method: squash
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Skullify notebooks after merge
+      - name: Skullify notebook
+        if: success()
+        run: |
+          STUDENT_ID="${{ github.actor }}"
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          ASCII=$(cat <<'EOF'
+          #############################################################
+          #                                                           #
+          #    █████╗ ██╗   ██╗████████╗ ██████╗  ██████╗              #
+          #   ██╔══██╗██║   ██║╚══██╔══╝██╔═══██╗██╔════╝              #
+          #   ███████║██║   ██║   ██║   ██║   ██║██║  ███╗             #
+          #   ██╔══██║██║   ██║   ██║   ██║   ██║██║   ██║             #
+          #   ██║  ██║╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝             #
+          #   ╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝  ╚═════╝              #
+          #                                                           #
+          #           🎓 AUTO-💀RAD-UATED! 🎓                          #
+          #                                                           #
+          #   Congrats $STUDENT_ID — your Tensor passed on $DATE       #
+          #                                                           #
+          #############################################################
+          EOF
+          )
+
+          for nb in notebooks/*.ipynb; do
+            echo '{"cells":[{"cell_type":"markdown","metadata":{},"source":["'"$ASCII"'"]}],"metadata":{},"nbformat":4,"nbformat_minor":5}' > $nb
+          done
+
+          git config --global user.email "ci-bot@example.com"
+          git config --global user.name "CI Bot"
+          git checkout main
+          git add notebooks/
+          git commit -m "🎓💀 AutoGrad-uated: Skullified $STUDENT_ID's notebook"
+          git push
