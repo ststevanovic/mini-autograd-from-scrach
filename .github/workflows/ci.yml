@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -49,7 +52,7 @@ jobs:
           git config user.name "autograd-bot"
           git add dist
           git commit -m "AutoGrad-uated: Wheel from ${{ github.actor }} (Hall of 27)"
-          git push
+          git push origin HEAD:main
 
       # Skullify notebooks after merge
       - name: Skullify notebook
