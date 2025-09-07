@@ -5,6 +5,10 @@ on:
     paths:
       - "notebooks/**"
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   test-and-autograduate:
     runs-on: ubuntu-latest
@@ -19,12 +23,13 @@ jobs:
       - run: pytest -q
 
       # Auto-merge if tests succeed
-      - name: Auto-merge PR
+      - name: Enable auto-merge
         if: success()
-        uses: peter-evans/merge-pull-request@v3
+        uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          merge-method: squash
           token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: squash
 
       # Hall of 27 check
       - name: Check Hall of 27
