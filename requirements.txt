@@ -5,3 +5,4 @@ nbformat
 nbclient
 ipykernel
 packaging
+pytest

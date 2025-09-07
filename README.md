@@ -3,7 +3,7 @@
 Mini reverse-mode autodiff engine for the **ML Systems Bootcamp**.
 
 ## 🚀 Goal
-Students must implement their own `Tensor` class (with `Add`, `Mul`, `Matmul`, `ReLU`, and `backward`) inside a Jupyter notebook using numpy.
+Students must implement their own `Tensor` class (with `Add`, `Mul`, `Matmul`, `ReLU`, `Sum` and `backward`) inside a Jupyter notebook using numpy.
 
 ## 📂 Structure
 - `notebooks/` — student submissions (`phase-2-2-mini-autograd-engine-<name>.ipynb`)  
@@ -19,6 +19,12 @@ Students must implement their own `Tensor` class (with `Add`, `Mul`, `Matmul`, `
   4. Compare gradients to PyTorch.  
 
 If everything matches → ✅ student's PR will be merged.
+
+### Environment Rules
+- Allowed: Python stdlib + numpy
+- Provided: torch (only for reference checks, **not** for your implementation)
+- Forbidden: tqdm, pandas, subprocess, os, socket, sys, shutil, etc.
+- If you need another library, open an issue and request it. CI will not pass otherwise.
 
 ## 📜 License
 MIT License for code, CC-BY-SA for course materials (notebooks, docs).
