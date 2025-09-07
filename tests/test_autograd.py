@@ -1,7 +1,6 @@
 import nbformat
 from nbclient import NotebookClient
 import pathlib
-import inspect
 import zipfile
 import hashlib
 import random
@@ -9,9 +8,34 @@ import shutil
 import numpy as np
 import torch
 
-def save_tensor_as_whl(Tensor, nb_path: str):
-    """Extract source from Tensor class and package into a whl-like archive."""
-    code = inspect.getsource(Tensor)
+
+def save_tensor_as_whl(nb_path: str, code:str):
+    """
+    Extract Tensor class source and its import lines from a notebook.
+    Freeze those into a whl-like archive for tracking.
+    """
+    nb = nbformat.read(nb_path, as_version=4)
+    tensor_code = []
+    import_lines = set()
+    found_tensor = False
+
+    for cell in nb.cells:
+        if cell.cell_type != "code":
+            continue
+        src = cell.source
+
+        # Collect all import statements (freeze what student used)
+        for line in src.splitlines():
+            if line.strip().startswith("import ") or line.strip().startswith("from "):
+                import_lines.add(line)
+
+        # Grab Tensor class definition(s)
+        if "class Tensor" in src:
+            found_tensor = True
+            tensor_code.append(src)
+
+    if not found_tensor:
+        raise RuntimeError("Tensor class not found in notebook for packaging.")
 
     nb_file = pathlib.Path(nb_path).stem  # e.g. phase-2-2-mini-autograd-engine-alice
     student_name = nb_file.split("-")[-1]
@@ -38,28 +62,70 @@ def save_tensor_as_whl(Tensor, nb_path: str):
 
     print(f"Created {whl_path}")
 
-def load_tensor_from_notebook(nb_path:str):
-    """
-    Execute a notebook and return its Tensor class.
-    Assumes notebook defines a class named `Tensor`.
-    """
-    nb = nbformat.read(nb_path, as_version=4)
-    client = NotebookClient(nb, timeout=700, kernel_name="python3")
-    client.execute()
 
+def run_safeguard(nb):
+    """
+    Execute only safe cells from a notebook.
+    Check imports against the actual CI environment.
+    Returns (Tensor class, combined source).
+    """
     ns = {}
+    banned = ("subprocess", "os.", "shutil", "sys.", "socket")
+
+    tensor_src = []
+    import_lines = []
 
     for cell in nb.cells:
-        if cell.cell_type == "code":
-            exec(cell.source, ns)
-    if "Tensor" not in ns:
-        raise RuntimeError(f"No Tensor class found in {nb_path}")
-    
-    Tensor = ns["Tensor"]
+        if cell.cell_type != "code":
+            continue
+        src = cell.source.strip()
 
-    # Archive into wheel-like zip
-    save_tensor_as_whl(Tensor, nb_path)
-    
+        # skip magics / shell
+        if src.startswith("!") or src.startswith("%"):
+            continue
+
+        # check banned dangerous stuff
+        if any(b in src for b in banned):
+            raise RuntimeError(f"Banned module/function detected in code: {src}")
+
+        # validate imports against current environment
+        for line in src.splitlines():
+            if line.strip().startswith("import ") or line.strip().startswith("from "):
+                mod = line.split()[1].split(".")[0]
+                try:
+                    __import__(mod)
+                except ImportError:
+                    raise RuntimeError(
+                        f"Import '{mod}' not available in course environment. "
+                        f"Please stick to standard library + numpy (see README)."
+                    )
+                import_lines.append(line)
+
+        # Capture Tensor class
+        if "class Tensor" in src:
+            tensor_src.append(src)
+
+        exec(src, ns)
+
+    if "Tensor" not in ns:
+        raise RuntimeError("No Tensor class found in notebook")
+
+    return ns["Tensor"], "\n".join(import_lines + tensor_src)
+
+
+
+def load_tensor_from_notebook(nb_path: str):
+    """
+    Parse a notebook safely, return its Tensor class,
+    and archive its implementation into a whl-like zip.
+    """
+    nb = nbformat.read(nb_path, as_version=4)
+
+    Tensor, code = run_safeguard(nb)
+
+    # Archive into wheel-like zip with captured code
+    save_tensor_as_whl(nb_path, code)
+
     return Tensor
 
 
@@ -85,7 +151,11 @@ def test_linear_relu_mlp():
 
         h = (xT @ W1T).relu()
         y = h @ W2T
-        loss = ((y - Tensor(t)) * (y - Tensor(t))).sum()
+
+        # (y - t) implemented as y + (-1 * t)
+        neg_t = Tensor(np.array(-1.0, dtype=np.float32)) * Tensor(t)
+        diff = y + neg_t
+        loss = (diff * diff).sum()  # requires student's .sum()
         loss.backward()
 
         # pytorch reference

@@ -5,11 +5,17 @@ on:
     paths:
       - "notebooks/**"
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   test-and-autograduate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -17,16 +23,29 @@ jobs:
       - run: pytest -q
 
       # Auto-merge if tests succeed
-      - name: Auto-merge PR
+      - name: Enable auto-merge
         if: success()
-        uses: peter-evans/merge-pull-request@v3
+        uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          merge-method: squash
           token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: squash
 
-      # Skullify notebooks after merge
-      - name: Skullify notebook
+      # Hall of 27 check
+      - name: Check Hall of 27
         if: success()
+        id: hall27
+        run: |
+          count=$(ls dist/*.whl 2>/dev/null | wc -l || true)
+          echo "current=$count" >> $GITHUB_OUTPUT
+          if [ "$count" -ge 27 ]; then
+            echo "Hall of 27 is full. No more wheels will be stored."
+            exit 0
+          fi
+
+      # Commit dist wheel + skullified notebook in a single commit
+      - name: Commit Hall of 27 + Skullify
+        if: success() && steps.hall27.outputs.current < 27
         run: |
           STUDENT_ID="${{ github.actor }}"
           DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -41,7 +60,7 @@ jobs:
           #   ██║  ██║╚██████╔╝   ██║   ╚██████╔╝╚██████╔╝             #
           #   ╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝  ╚═════╝              #
           #                                                           #
-          #           🎓 AUTO-💀RAD-UATED! 🎓                          #
+          #           🎓 AUTO-GRAD-UATED! 🎓                          #
           #                                                           #
           #   Congrats $STUDENT_ID — your Tensor passed on $DATE       #
           #                                                           #
@@ -49,13 +68,18 @@ jobs:
           EOF
           )
 
+          git fetch origin main
+          git checkout main
+          git pull origin main
+
+          # Skullify notebook(s)
           for nb in notebooks/*.ipynb; do
             echo '{"cells":[{"cell_type":"markdown","metadata":{},"source":["'"$ASCII"'"]}],"metadata":{},"nbformat":4,"nbformat_minor":5}' > $nb
           done
 
-          git config --global user.email "ci-bot@example.com"
-          git config --global user.name "CI Bot"
-          git checkout main
-          git add notebooks/
-          git commit -m "🎓💀 AutoGrad-uated: Skullified $STUDENT_ID's notebook"
-          git push
+          git config user.email "autograd-bot@users.noreply.github.com"
+          git config user.name "autograd-bot"
+
+          git add dist notebooks/
+          git commit -m "🎓 AutoGrad-uated: $STUDENT_ID (Hall of 27)" || echo "No changes to commit"
+          git push origin main
