@@ -5,11 +5,18 @@ on:
     paths:
       - "notebooks/**"
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   test-and-autograduate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -17,12 +24,13 @@ jobs:
       - run: pytest -q
 
       # Auto-merge if tests succeed
-      - name: Auto-merge PR
+      - name: Enable auto-merge
         if: success()
-        uses: peter-evans/merge-pull-request@v3
+        uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          merge-method: squash
           token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: squash
 
       # Hall of 27 check
       - name: Check Hall of 27
@@ -44,7 +52,7 @@ jobs:
           git config user.name "autograd-bot"
           git add dist
           git commit -m "AutoGrad-uated: Wheel from ${{ github.actor }} (Hall of 27)"
-          git push
+          git push origin HEAD:main
 
       # Skullify notebooks after merge
       - name: Skullify notebook
