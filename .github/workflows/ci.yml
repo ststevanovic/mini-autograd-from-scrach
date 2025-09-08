@@ -46,11 +46,22 @@ jobs:
       # Commit dist wheel + skullified notebook in a single commit
       - name: Commit Hall of 27 + Skullify
         if: success() && steps.hall27.outputs.current < 27
+        env:
+          STUDENT_ID: ${{ github.actor }}
+          DATE: ${{ steps.date.outputs.now || '' }}
         run: |
-          STUDENT_ID="${{ github.actor }}"
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          # Ensure we're on an up-to-date main before committing
+          git fetch origin main
+          git checkout main
+          git pull --rebase origin main
 
-          ASCII=$(cat <<'EOF'
+          python - <<'PY'
+          import os, glob, nbformat
+
+          student = os.environ.get("STUDENT_ID", "unknown")
+          date    = os.environ.get("DATE", "")
+
+          ascii_banner = r"""
           #############################################################
           #                                                           #
           #    █████╗ ██╗   ██╗████████╗ ██████╗  ██████╗              #
@@ -62,24 +73,29 @@ jobs:
           #                                                           #
           #           🎓 AUTO-GRAD-UATED! 🎓                          #
           #                                                           #
-          #   Congrats $STUDENT_ID — your Tensor passed on $DATE       #
+          #   Congrats {student} — your Tensor passed on {date}        #
           #                                                           #
           #############################################################
-          EOF
-          )
+          """.format(student=student, date=date).strip("\n")
 
-          git fetch origin main
-          git checkout main
-          git pull origin main
+          md = ascii_banner + "\n\n" + \
+              f"**🎓 AutoGrad-uated!**  \n" \
+              f"Congrats **{student}** — your Tensor passed on **{date}**."
 
-          # Skullify notebook(s)
-          for nb in notebooks/*.ipynb; do
-            echo '{"cells":[{"cell_type":"markdown","metadata":{},"source":["'"$ASCII"'"]}],"metadata":{},"nbformat":4,"nbformat_minor":5}' > $nb
-          done
+          for nb_path in glob.glob("notebooks/*.ipynb"):
+              nb = nbformat.v4.new_notebook()
+              nb.cells = [nbformat.v4.new_markdown_cell(md)]
+              # minimal-but-valid metadata so Jupyter/GitHub render it cleanly
+              nb.metadata = {
+                  "kernelspec": {"display_name":"Python 3","language":"python","name":"python3"},
+                  "language_info": {"name":"python","version":"3.11"}
+              }
+              nbformat.write(nb, nb_path)
+          PY
 
-          git config user.email "autograd-bot@users.noreply.github.com"
-          git config user.name "autograd-bot"
+              git config user.email "autograd-bot@users.noreply.github.com"
+              git config user.name "autograd-bot"
+              git add dist notebooks/
+              git commit -m "🎓AutoGrad-uated: ${STUDENT_ID} (Hall of 27)" || echo "No changes to commit"
+              git push origin main
 
-          git add dist notebooks/
-          git commit -m "🎓 AutoGrad-uated: $STUDENT_ID (Hall of 27)" || echo "No changes to commit"
-          git push origin main
