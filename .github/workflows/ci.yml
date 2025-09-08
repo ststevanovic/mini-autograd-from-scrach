@@ -31,18 +31,6 @@ jobs:
           pull-request-number: ${{ github.event.pull_request.number }}
           merge-method: squash
 
-      # Hall of 27 check
-      - name: Check Hall of 27
-        if: success()
-        id: hall27
-        run: |
-          count=$(ls dist/*.whl 2>/dev/null | wc -l || true)
-          echo "current=$count" >> $GITHUB_OUTPUT
-          if [ "$count" -ge 27 ]; then
-            echo "Hall of 27 is full. No more wheels will be stored."
-            exit 0
-          fi
-
       # Commit dist wheel + skullified notebook in a single commit
       - name: Commit Hall of 27 + Skullify
         if: success() && steps.hall27.outputs.current < 27
