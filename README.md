@@ -9,7 +9,7 @@ A minimal yet powerful reverse-mode automatic differentiation (autograd) engine 
 - [Quick Start](#quick-start)
 - [How It Works](#how-it-works)
 - [API Documentation](#api-documentation)
-- [Complete Examples](#complete-examples)
+- [Implementation Guide](#implementation-guide)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
 - [License](#license)
@@ -266,77 +266,61 @@ y = Tensor([[1.0],             # Shape: (3, 1)
 z = x + y  # Broadcasts to (3, 3), gradients correctly back-propagate
 ```
 
-## 💡 Complete Examples
+## 💻 Implementation Guide
 
-### Example 1: Linear Regression
+### Step 1: Define Tensor Class
+Your `Tensor` must store:
+- `.data`: the actual numpy array
+- `.grad`: accumulated gradient
+- `.requires_grad`: flag
+- `_backward`: local backward function
+- `_prev`: parent nodes (to build the graph)
 
-```python
-import numpy as np
-from dist.sstev import Tensor
+### Step 2: Add five ops: Add, Mul, Matmul, Sum and ReLU
+Each op must:
+- Return a new Tensor with requires_grad=True if any parent requires it.
+- Define _backward to propagate gradients to parents.
+- Save _prev to let .backward() traverse the graph.
 
-# Generate synthetic data: y = 2x + 1 + noise
-np.random.seed(42)
-X = np.random.randn(100, 1).astype(np.float32)
-y_true = 2 * X + 1 + 0.1 * np.random.randn(100, 1).astype(np.float32)
+### Step 3: Add one op: Backward
+Implement `.backward()`:
+- Do a reverse topological traversal of the graph.
+- Seed final grad with 1 if scalar.
+- Call each node's `_backward()` in reverse order.
 
-# Initialize parameters (use float32 to match data)
-w = Tensor(np.random.randn(1, 1).astype(np.float32), requires_grad=True)
-b = Tensor(np.zeros((1, 1), dtype=np.float32), requires_grad=True)
+### Template
 
-# Training loop
-learning_rate = 0.01
-for epoch in range(100):
-    # Forward pass
-    X_t = Tensor(X)
-    y_t = Tensor(y_true)
-    
-    y_pred = X_t @ w + b
-    diff = y_pred + (Tensor(np.array([-1.0], dtype=np.float32)) * y_t)
-    loss = (diff * diff).sum()
-    
-    # Backward pass
-    loss.backward()
-    
-    # Gradient descent
-    w.data -= learning_rate * w.grad
-    b.data -= learning_rate * b.grad
-    
-    # Zero gradients
-    w.zero_grad()
-    b.zero_grad()
-    
-    if epoch % 20 == 0:
-        print(f"Epoch {epoch}: Loss = {loss.data:.4f}")
-
-print(f"Final w: {w.data[0, 0]:.4f} (expected ~2.0)")
-print(f"Final b: {b.data[0, 0]:.4f} (expected ~1.0)")
-```
-
-### Example 2: Multi-Layer Perceptron
+Here's a quick template to get started:
 
 ```python
-# Build a 2-layer MLP: input(3) -> hidden(5) -> output(2)
-np.random.seed(42)
+class Tensor:
+    def __init__(self, data, requires_grad=False):
+        # TODO: implement
+        raise NotImplementedError
+    
+    def __add__(self, other):
+        # TODO: implement add
+        raise NotImplementedError
 
-x = Tensor(np.random.randn(4, 3), requires_grad=False)  # Batch of 4
-W1 = Tensor(np.random.randn(3, 5), requires_grad=True)
-W2 = Tensor(np.random.randn(5, 2), requires_grad=True)
-target = Tensor(np.random.randn(4, 2))
+    def __mul__(self, other):
+        # TODO: implement
+        raise NotImplementedError
 
-# Forward pass
-hidden = (x @ W1).relu()  # (4, 5)
-output = hidden @ W2       # (4, 2)
+    def __matmul__(self, other):
+        # TODO: implement
+        raise NotImplementedError
 
-# Mean squared error loss
-diff = output + (Tensor([-1.0]) * target)
-loss = (diff * diff).sum()
+    def sum(self, other):
+        # TODO: implement
+        raise NotImplementedError
 
-# Backward pass
-loss.backward()
+    def relu(self, other):
+        # TODO: implement
+        raise NotImplementedError
 
-print(f"Loss: {loss.data}")
-print(f"W1 gradient shape: {W1.grad.shape}")  # (3, 5)
-print(f"W2 gradient shape: {W2.grad.shape}")  # (5, 2)
+    def backward(self, grad=None):
+        # TODO: implement backward
+        raise NotImplementedError
 ```
 
 ## 📂 Project Structure
