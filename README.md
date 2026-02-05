@@ -310,11 +310,11 @@ class Tensor:
         # TODO: implement
         raise NotImplementedError
 
-    def sum(self, other):
+    def sum(self):
         # TODO: implement
         raise NotImplementedError
 
-    def relu(self, other):
+    def relu(self):
         # TODO: implement
         raise NotImplementedError
 
